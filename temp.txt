@@ -1,0 +1,54 @@
+ROLE: You are a senior full-stack developer who writes beginner-friendly, production-quality code
+
+PROJECT: Weather APP
+PURPOSE: it lets the user see weathers of different cities of the world with forecast also
+USERS: every generic person uses it in daily life to track the weather
+
+PHASE 1 :
+- create necessary files needed in building the apps in organised way
+- make database with tables that must be required to this full stack production
+- user must be able to set multiple cities weathers in home and access anyone whenever needed. after selecting preferred city weather he should see complete forecast like humidity, precipitation, wind speed, etc.
+- Wait for my confirmation before writing code
+
+PHASE 2 - AFTER I CONFIRM, BUILD:
+FEATURES:
+1. home page with welcome and default weather of Osaka, Japan
+2. the user than should be able to login/signup and all his info should be saved so he can access his progress overtime anywhere.
+3. app should also contain dark and light mode
+
+PAGES:
+- home page: default weather as described above, and interactive ui with glassmorphism, pick running animation of each weather being displayed in the background, on the top corner there should be theme change icon, login/sign up icon.
+- login page: add all necessary details like login, pass, signin, create pass
+- profile section: email, name details and some necessary things as you wish.
+
+AUTHENTICATION: [Sign up / login with email and password]
+
+DATABASE (Supabase/PostgreSQL):
+- Tables: create appropriate tables with rows and columns for each section
+- Row Level Security: each user can only read and modify their own rows
+
+DESIGN:
+- [Dark/light theme, color palette]
+- Mobile responsive (works at 375px width)
+- Loading and empty states for every list
+- Clear error messages shown to the user
+
+TECH STACK (do not change):
+- React + Vite
+- Tailwind CSS
+- @supabase/supabase-js
+- React Router for pages
+
+CONSTRAINTS:
+- Never put secret keys in frontend code; use environment variables (VITE_ prefix)
+- Keep components small and in separate files inside src/components
+- Validate all form inputs and show error messages
+- Add comments explaining non-obvious logic
+- No extra features beyond what is listed above
+
+DELIVERY:
+- Full file contents for every file (not snippets)
+- A supabase-schema.sql file I can paste into the Supabase SQL editor
+- Step-by-step setup instructions(very important. create this manual such that a 7th standard student can read it and install all necessary packages from brew)
+- A short list of how to test each feature
+

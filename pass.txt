@@ -1,0 +1,14 @@
+pass1234 for painlodu user on weather app
+
+configure git with 2 accounts
+
+push code on github
+deploy the app (now this app is running indipendently wrt github code until its changed)-> remote
+
+main: -> local  
+        - create a new feature
+        - test it with npm run dev/build on your local browser
+        - push the feature branch to your github
+        - merge PR 
+
+    
