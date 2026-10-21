@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 import WeatherBackground from '../components/WeatherBackground.jsx'
@@ -9,28 +9,48 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
+function hasRecoveryCallback() {
+  const query = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.slice(1))
+  return query.get('recovery') === '1' || hash.get('type') === 'recovery'
+}
+
+function getRecoveryUrlError() {
+  const query = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.slice(1))
+  const description = query.get('error_description') || hash.get('error_description')
+  return description || ''
+}
+
 export default function LoginPage() {
   const { user, signIn } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [errors, setErrors] = useState({})
-  const [formError, setFormError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [recoveryStep, setRecoveryStep] = useState(() =>
-    new URLSearchParams(window.location.search).get('recovery') === '1' ? 'link' : '',
-  )
-  const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState(() => getRecoveryUrlError())
+  const [submitting, setSubmitting] = useState(false)
+  const [recoveryStep, setRecoveryStep] = useState(() => (hasRecoveryCallback() ? 'link' : ''))
   const [notice, setNotice] = useState('')
 
-  // Keep recovery sessions on this screen until the replacement password is saved.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryStep('link')
+        setFormError('')
+        setNotice('Choose a new password for your account.')
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
   if (user && !recoveryStep) {
     return <Navigate to="/" replace />
   }
 
-  function validate() {
+  function validateLogin() {
     const next = {}
     if (!email.trim()) next.email = 'Email is required.'
     else if (!isValidEmail(email.trim())) next.email = 'Enter a real email address.'
@@ -43,18 +63,21 @@ export default function LoginPage() {
   async function handleSubmit(event) {
     event.preventDefault()
     setFormError('')
-    if (!validate()) return
+    if (!validateLogin()) return
 
     setSubmitting(true)
-    const { error } = await signIn({ email: email.trim(), password })
-    setSubmitting(false)
-
-    if (error) {
-      setFormError(error.message)
-      return
+    try {
+      const { error } = await signIn({ email: email.trim(), password })
+      if (error) {
+        setFormError(error.message)
+        return
+      }
+      navigate('/')
+    } catch (error) {
+      setFormError(error.message || 'Unable to sign in. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
-
-    navigate('/')
   }
 
   async function requestRecovery(event) {
@@ -65,26 +88,30 @@ export default function LoginPage() {
       setFormError('Enter a valid email address.')
       return
     }
+
     setSubmitting(true)
-    const redirectTo = `${window.location.origin}/login?recovery=1`
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo })
-    setSubmitting(false)
-    if (error) {
-      setFormError(error.message)
-      return
+    try {
+      const appUrl = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/+$/, '')
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${appUrl}/login?recovery=1`,
+      })
+      if (error) {
+        setFormError(error.message)
+        return
+      }
+      setRecoveryStep('sent')
+      setNotice('If an account exists for that email, a password reset link has been sent. Open it on the device where you want to reset your password.')
+    } catch (error) {
+      setFormError(error.message || 'Unable to send the reset email. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
-    setRecoveryStep('sent')
-    setNotice('If an account exists for that email, a password reset link has been sent. Open it in this browser to choose a new password.')
   }
 
-  async function verifyRecovery(event) {
+  async function saveRecoveredPassword(event) {
     event.preventDefault()
     setFormError('')
     setNotice('')
-    if (recoveryStep === 'otp' && !/^\d{6}$/.test(otp.trim())) {
-      setFormError('Enter the 6-digit code from your email.')
-      return
-    }
     if (newPassword.length < 8) {
       setFormError('Password must be at least 8 characters.')
       return
@@ -93,26 +120,33 @@ export default function LoginPage() {
       setFormError('Passwords do not match.')
       return
     }
+
     setSubmitting(true)
-    let recoveryError = null
-    if (recoveryStep === 'otp') {
-      const verified = await supabase.auth.verifyOtp({ email: email.trim(), token: otp.trim(), type: 'recovery' })
-      recoveryError = verified.error
-    } else {
-      const { data, error } = await supabase.auth.getSession()
-      recoveryError = error ?? (!data.session ? new Error('This reset link is invalid or has expired. Request a new password reset link.') : null)
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
+      if (!data.session) {
+        throw new Error('This reset link is invalid or has expired. Request a new password reset email.')
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) throw error
+      setNewPassword('')
+      setConfirmPassword('')
+      setRecoveryStep('complete')
+      setNotice('Your password has been updated. Sign in with your new password.')
+    } catch (error) {
+      setFormError(error.message || 'Unable to update the password. Request a new reset email and try again.')
+    } finally {
+      setSubmitting(false)
     }
-    const result = recoveryError ? { error: recoveryError } : await supabase.auth.updateUser({ password: newPassword })
-    setSubmitting(false)
-    if (result.error) {
-      setFormError(result.error.message)
-      return
-    }
+  }
+
+  async function returnToLogin() {
+    if (recoveryStep === 'complete') await supabase.auth.signOut()
     setRecoveryStep('')
-    setPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    setNotice('Password updated. You can now sign in with your new password.')
+    setFormError('')
+    setNotice('')
   }
 
   return (
@@ -122,74 +156,57 @@ export default function LoginPage() {
         <h1 className="text-3xl font-semibold">Log in</h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Use the email and password you created. New here?{' '}
-          <Link to="/signup" className="underline">
-            Create an account
-          </Link>
+          <Link to="/signup" className="underline">Create an account</Link>
         </p>
 
         {recoveryStep ? (
-          <form onSubmit={recoveryStep === 'email' ? requestRecovery : verifyRecovery} className="mt-6 space-y-4" noValidate>
-            <h2 className="text-xl font-semibold">Reset your password</h2>
+          <div className="mt-6 space-y-4">
+            <h2 className="text-xl font-semibold">{recoveryStep === 'email' ? 'Reset your password' : recoveryStep === 'sent' ? 'Check your email' : recoveryStep === 'complete' ? 'Password updated' : 'Choose a new password'}</h2>
             {recoveryStep === 'email' ? (
-              <>
-                <p className="text-sm text-slate-600 dark:text-slate-300">Enter the email address linked to your account. We’ll send a recovery code if an account is found.</p>
-                <label className="block text-sm font-medium">Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" /></label>
-              </>
+              <form onSubmit={requestRecovery} className="space-y-4" noValidate>
+                <p className="text-sm text-slate-600 dark:text-slate-300">Enter the email address linked to your account. We’ll send a secure reset link.</p>
+                <label className="block text-sm font-medium">Email
+                  <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" />
+                </label>
+                {formError ? <ErrorMessage message={formError} /> : null}
+                <button type="submit" disabled={submitting} className="w-full rounded-xl bg-sky-600 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60">{submitting ? 'Sending...' : 'Send reset link'}</button>
+              </form>
+            ) : recoveryStep === 'link' ? (
+              <form onSubmit={saveRecoveredPassword} className="space-y-4" noValidate>
+                <p className="text-sm text-slate-600 dark:text-slate-300">Enter and confirm your new password. Reset links expire and can only be used once.</p>
+                <label className="block text-sm font-medium">New password
+                  <input type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" />
+                </label>
+                <label className="block text-sm font-medium">Confirm new password
+                  <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" />
+                </label>
+                {formError ? <ErrorMessage message={formError} /> : null}
+                {notice ? <p className="text-sm text-emerald-700 dark:text-emerald-300">{notice}</p> : null}
+                <button type="submit" disabled={submitting} className="w-full rounded-xl bg-sky-600 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60">{submitting ? 'Updating...' : 'Update password'}</button>
+              </form>
             ) : (
-              recoveryStep === 'sent' ? (
-                <p className="text-sm text-slate-600 dark:text-slate-300">Check your inbox and open the reset link to continue here.</p>
-              ) : (
               <>
-                {recoveryStep === 'otp' ? <label className="block text-sm font-medium">6-digit email code<input inputMode="numeric" autoComplete="one-time-code" value={otp} onChange={(event) => setOtp(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" /></label> : null}
-                <label className="block text-sm font-medium">New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" /></label>
-                <label className="block text-sm font-medium">Confirm new password<input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" /></label>
+                <p className="text-sm text-slate-600 dark:text-slate-300">{notice}</p>
+                {recoveryStep === 'sent' && formError ? <ErrorMessage message={formError} /> : null}
               </>
-              )
             )}
-            {formError ? <ErrorMessage message={formError} /> : null}
-            {notice ? <p className="text-sm text-emerald-700 dark:text-emerald-300">{notice}</p> : null}
-            {recoveryStep !== 'sent' ? <button type="submit" disabled={submitting} className="w-full rounded-xl bg-sky-600 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60">{submitting ? 'Please wait...' : recoveryStep === 'email' ? 'Send reset link' : recoveryStep === 'otp' ? 'Verify code and reset password' : 'Save new password'}</button> : null}
-            {recoveryStep !== 'link' ? <button type="button" onClick={() => { setRecoveryStep(''); setFormError(''); setNotice('') }} className="w-full text-sm underline">Back to sign in</button> : null}
-          </form>
+            <button type="button" onClick={returnToLogin} disabled={submitting} className="w-full text-sm underline disabled:opacity-60">Back to sign in</button>
+          </div>
         ) : (
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
-          <label className="block text-sm font-medium">
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white"
-            />
-          </label>
-          {errors.email ? <ErrorMessage message={errors.email} /> : null}
-
-          <label className="block text-sm font-medium">
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white"
-            />
-          </label>
-          {errors.password ? <ErrorMessage message={errors.password} /> : null}
-
-          <button type="button" onClick={() => { setRecoveryStep('email'); setFormError(''); setNotice('') }} className="text-sm underline">Forgot password?</button>
-
-          {formError ? <ErrorMessage message={formError} /> : null}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-xl bg-sky-600 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60"
-          >
-            {submitting ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+            <label className="block text-sm font-medium">Email
+              <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" />
+            </label>
+            {errors.email ? <ErrorMessage message={errors.email} /> : null}
+            <label className="block text-sm font-medium">Password
+              <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" />
+            </label>
+            {errors.password ? <ErrorMessage message={errors.password} /> : null}
+            <button type="button" onClick={() => { setRecoveryStep('email'); setFormError(''); setNotice('') }} className="text-sm underline">Forgot password?</button>
+            {formError ? <ErrorMessage message={formError} /> : null}
+            <button type="submit" disabled={submitting} className="w-full rounded-xl bg-sky-600 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60">{submitting ? 'Signing in...' : 'Sign in'}</button>
+          </form>
         )}
-        {!recoveryStep && notice ? <p className="mt-4 text-sm text-emerald-700 dark:text-emerald-300">{notice}</p> : null}
       </section>
     </div>
   )
