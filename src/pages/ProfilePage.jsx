@@ -15,6 +15,11 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [savedMessage, setSavedMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordMessage, setPasswordMessage] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
   const displayName = nameDraft ?? profile?.display_name ?? ''
 
   useEffect(() => {
@@ -78,6 +83,30 @@ export default function ProfilePage() {
     navigate('/')
   }
 
+  async function handleChangePassword(event) {
+    event.preventDefault()
+    setPasswordError('')
+    setPasswordMessage('')
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setPasswordError('Passwords do not match.')
+      return
+    }
+    setSavingPassword(true)
+    const { error: passwordUpdateError } = await supabase.auth.updateUser({ password })
+    setSavingPassword(false)
+    if (passwordUpdateError) {
+      setPasswordError(passwordUpdateError.message)
+      return
+    }
+    setPassword('')
+    setConfirmPassword('')
+    setPasswordMessage('Your password was changed.')
+  }
+
   if (!profile) {
     return <LoadingState message="Loading your profile..." />
   }
@@ -135,6 +164,23 @@ export default function ProfilePage() {
             className="rounded-xl bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60"
           >
             {saving ? 'Saving...' : 'Save name'}
+          </button>
+        </form>
+
+        <form onSubmit={handleChangePassword} className="mt-7 space-y-3 border-t border-white/30 pt-6 dark:border-white/10">
+          <h2 className="text-xl font-semibold">Change password</h2>
+          <label className="block text-sm font-medium">
+            New password
+            <input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" />
+          </label>
+          <label className="block text-sm font-medium">
+            Confirm new password
+            <input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-white/40 bg-white/80 px-3 py-2 text-slate-900 dark:border-white/10 dark:bg-slate-900/80 dark:text-white" />
+          </label>
+          {passwordError ? <ErrorMessage message={passwordError} /> : null}
+          {passwordMessage ? <p className="rounded-xl bg-emerald-100/80 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-100">{passwordMessage}</p> : null}
+          <button type="submit" disabled={savingPassword} className="rounded-xl bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60">
+            {savingPassword ? 'Changing...' : 'Change password'}
           </button>
         </form>
 
