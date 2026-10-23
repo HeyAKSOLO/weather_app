@@ -159,19 +159,19 @@ export default function HomePage() {
     : 'clear'
 
   return (
-    <div className="home-layout">
+    <div className={`home-layout ${citiesOpen ? 'cities-expanded' : 'cities-collapsed'}`}>
       <WeatherBackground group={weatherGroup} />
 
       <aside className={`saved-sidebar glass-panel ${citiesOpen ? 'is-open' : 'is-closed'}`}>
         <button
           type="button"
           className="sidebar-toggle"
+          aria-label={citiesOpen ? 'Collapse saved cities' : 'Expand saved cities'}
           aria-expanded={citiesOpen}
           aria-controls="saved-city-panel"
           onClick={() => setCitiesOpen((open) => !open)}
         >
-          <span aria-hidden="true">{citiesOpen ? '‹' : '›'}</span>
-          <span className="sidebar-toggle-label">Saved cities</span>
+          <span className="menu-icon" aria-hidden="true"><i /><i /><i /></span>
         </button>
         {citiesOpen ? (
           <div id="saved-city-panel" className="saved-sidebar-content">

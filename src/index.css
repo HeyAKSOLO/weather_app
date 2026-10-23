@@ -35,10 +35,13 @@ body {
 .home-layout {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 3.75rem minmax(0, 1fr);
+  gap: 1rem;
   align-items: start;
-  padding-left: 3.75rem;
+  transition: grid-template-columns 180ms ease;
 }
+
+.home-layout.cities-expanded { grid-template-columns: 17rem minmax(0, 1fr); }
 
 .home-content {
   display: flex;
@@ -48,53 +51,44 @@ body {
 }
 
 .saved-sidebar {
-  position: fixed;
+  position: sticky;
   top: 6rem;
-  left: 0;
-  z-index: 20;
   display: flex;
   max-height: calc(100svh - 7rem);
   overflow: hidden;
   border-radius: 1rem;
-  transition: width 180ms ease;
+  min-width: 0;
 }
 
-.saved-sidebar.is-open { width: 17rem; }
-.saved-sidebar.is-closed { width: 10.5rem; }
+.saved-sidebar.is-open, .saved-sidebar.is-closed { width: 100%; }
 
 .sidebar-toggle {
   display: flex;
-  flex: 0 0 3.25rem;
+  flex: 0 0 3.75rem;
   align-items: center;
   justify-content: center;
-  gap: .65rem;
   border: 0;
-  border-right: 1px solid color-mix(in srgb, currentColor 12%, transparent);
   background: transparent;
   color: inherit;
-  font-size: 1.3rem;
   cursor: pointer;
 }
 
-.sidebar-toggle-label {
-  display: none;
-  font-size: .9rem;
-  font-weight: 600;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
+.menu-icon { display: flex; flex-direction: column; gap: 5px; }
+.menu-icon i {
+  display: block;
+  width: 1.35rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
 }
 
-.is-closed .sidebar-toggle { flex-direction: row; }
-.is-closed .sidebar-toggle-label { display: inline; }
 .saved-sidebar-content { min-width: 0; width: 100%; padding: 1rem; overflow-y: auto; }
 
 @media (max-width: 700px) {
-  .home-layout { padding-left: 0; }
+  .home-layout,
+  .home-layout.cities-expanded { grid-template-columns: minmax(0, 1fr); }
   .saved-sidebar { position: static; grid-row: 1; max-height: none; }
-  .saved-sidebar.is-open, .saved-sidebar.is-closed { width: 100%; }
   .sidebar-toggle { flex: 0 0 3rem; }
-  .sidebar-toggle-label { display: inline; writing-mode: initial; transform: none; }
-  .is-closed .sidebar-toggle { flex-direction: row; }
 }
 
 /* --- looping weather backgrounds --- */
