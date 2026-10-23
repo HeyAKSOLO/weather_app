@@ -24,6 +24,7 @@ export default function HomePage() {
   const [weatherLoading, setWeatherLoading] = useState(true)
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [citiesOpen, setCitiesOpen] = useState(true)
 
   const loadSavedCities = useCallback(async () => {
     if (!user) {
@@ -158,8 +159,37 @@ export default function HomePage() {
     : 'clear'
 
   return (
-    <div className="space-y-5">
+    <div className={`home-layout ${citiesOpen ? 'cities-expanded' : 'cities-collapsed'}`}>
       <WeatherBackground group={weatherGroup} />
+
+      <aside className={`saved-sidebar glass-panel ${citiesOpen ? 'is-open' : 'is-closed'}`}>
+        <button
+          type="button"
+          className="sidebar-toggle"
+          aria-label={citiesOpen ? 'Collapse saved cities' : 'Expand saved cities'}
+          aria-expanded={citiesOpen}
+          aria-controls="saved-city-panel"
+          onClick={() => setCitiesOpen((open) => !open)}
+        >
+          <span className="menu-icon" aria-hidden="true"><i /><i /><i /></span>
+        </button>
+        {citiesOpen ? (
+          <div id="saved-city-panel" className="saved-sidebar-content">
+            <h2 className="mb-3 text-lg font-semibold">Your cities</h2>
+            <SavedCityList
+              cities={savedCities}
+              loading={citiesLoading}
+              selectedCity={selectedCity}
+              onSelect={rememberSelection}
+              onRemove={handleRemoveCity}
+              isLoggedIn={Boolean(user)}
+            />
+            {saveError ? <div className="mt-3"><ErrorMessage message={saveError} /></div> : null}
+          </div>
+        ) : null}
+      </aside>
+
+      <div className="home-content">
 
       <section className="glass-panel rounded-3xl p-5">
         <p className="text-sm uppercase tracking-wide text-sky-800 dark:text-sky-200">Welcome</p>
@@ -168,24 +198,11 @@ export default function HomePage() {
         </h1>
         <p className="mt-2 max-w-2xl text-slate-700 dark:text-slate-300">
           Osaka, Japan is shown first. Search any city for humidity, rain, wind, and a 7-day
-          forecast. Sign in to keep several cities on this page.
+          forecast. Sign in to keep your favorite cities in the side menu.
         </p>
       </section>
 
       <CitySearch onSelect={(city) => rememberSelection(city)} />
-
-      <section className="glass-panel rounded-3xl p-4">
-        <h2 className="mb-3 text-lg font-semibold">Your cities</h2>
-        <SavedCityList
-          cities={savedCities}
-          loading={citiesLoading}
-          selectedCity={selectedCity}
-          onSelect={rememberSelection}
-          onRemove={handleRemoveCity}
-          isLoggedIn={Boolean(user)}
-        />
-        {saveError ? <div className="mt-3"><ErrorMessage message={saveError} /></div> : null}
-      </section>
 
       {error ? <ErrorMessage message={error} /> : null}
       {weatherLoading ? <LoadingState message="Loading the forecast..." /> : null}
@@ -202,6 +219,7 @@ export default function HomePage() {
           <ForecastDetails forecast={forecast} />
         </>
       ) : null}
+      </div>
     </div>
   )
 }

@@ -32,6 +32,72 @@ body {
   box-shadow: 0 12px 40px color-mix(in srgb, black 35%, transparent);
 }
 
+.home-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  padding-left: 4.75rem;
+  transition: padding-left 180ms ease;
+}
+
+.home-layout.cities-expanded { padding-left: 18rem; }
+
+.home-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.saved-sidebar {
+  position: fixed;
+  top: 3.5rem;
+  left: 1rem;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  max-height: calc(100svh - 7rem);
+  overflow: hidden;
+  border-radius: 1rem;
+  min-width: 0;
+  transition: width 180ms ease;
+}
+
+.saved-sidebar.is-open { width: 17rem; }
+.saved-sidebar.is-closed { width: 3.75rem; }
+
+.sidebar-toggle {
+  display: flex;
+  flex: 0 0 3.75rem;
+  height: 3.75rem;
+  align-self: flex-start;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.menu-icon { display: flex; flex-direction: column; gap: 5px; }
+.menu-icon i {
+  display: block;
+  width: 1.35rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.saved-sidebar-content { min-width: 0; width: 100%; padding: 1rem; overflow-y: auto; }
+
+@media (max-width: 700px) {
+  .home-layout { padding-left: 4.75rem; }
+  .home-layout.cities-expanded { padding-left: min(18rem, calc(85vw + 1rem)); }
+  .saved-sidebar { top: 3.5rem; left: 1rem; max-height: calc(100svh - 4rem); }
+  .saved-sidebar.is-open { width: min(17rem, 85vw); }
+}
+
 /* --- looping weather backgrounds --- */
 
 @keyframes drift-cloud {
