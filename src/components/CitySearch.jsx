@@ -59,7 +59,12 @@ export default function CitySearch({ onSelect }) {
               <li key={`${city.city_name}-${city.latitude}-${city.longitude}`}>
                 <button
                   type="button"
-                  onClick={() => onSelect(city)}
+                  onClick={() => {
+                    onSelect(city)
+                    setQuery('')
+                    setResults([])
+                    setError('')
+                  }}
                   className="w-full rounded-xl bg-white/50 px-3 py-2 text-left hover:bg-white/80 dark:bg-slate-800/70 dark:hover:bg-slate-700"
                 >
                   {city.city_name}, {city.country}
