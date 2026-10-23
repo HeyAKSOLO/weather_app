@@ -35,13 +35,13 @@ body {
 .home-layout {
   position: relative;
   display: grid;
-  grid-template-columns: 3.75rem minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  transition: grid-template-columns 180ms ease;
+  padding-left: 4.75rem;
+  transition: padding-left 180ms ease;
 }
 
-.home-layout.cities-expanded { grid-template-columns: 17rem minmax(0, 1fr); }
+.home-layout.cities-expanded { padding-left: 18rem; }
 
 .home-content {
   display: flex;
@@ -51,17 +51,21 @@ body {
 }
 
 .saved-sidebar {
-  position: sticky;
-  top: 6rem;
+  position: fixed;
+  top: 3.5rem;
+  left: 1rem;
+  z-index: 30;
   display: flex;
   align-items: flex-start;
   max-height: calc(100svh - 7rem);
   overflow: hidden;
   border-radius: 1rem;
   min-width: 0;
+  transition: width 180ms ease;
 }
 
-.saved-sidebar.is-open, .saved-sidebar.is-closed { width: 100%; }
+.saved-sidebar.is-open { width: 17rem; }
+.saved-sidebar.is-closed { width: 3.75rem; }
 
 .sidebar-toggle {
   display: flex;
@@ -88,10 +92,10 @@ body {
 .saved-sidebar-content { min-width: 0; width: 100%; padding: 1rem; overflow-y: auto; }
 
 @media (max-width: 700px) {
-  .home-layout,
-  .home-layout.cities-expanded { grid-template-columns: minmax(0, 1fr); }
-  .saved-sidebar { position: static; grid-row: 1; max-height: none; }
-  .sidebar-toggle { flex: 0 0 3rem; }
+  .home-layout { padding-left: 4.75rem; }
+  .home-layout.cities-expanded { padding-left: min(18rem, calc(85vw + 1rem)); }
+  .saved-sidebar { top: 3.5rem; left: 1rem; max-height: calc(100svh - 4rem); }
+  .saved-sidebar.is-open { width: min(17rem, 85vw); }
 }
 
 /* --- looping weather backgrounds --- */
